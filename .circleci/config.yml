@@ -122,6 +122,7 @@ references:
         command: |
           export PACKAGE=${PACKAGES_DIR:?}/epoch-$(cat VERSION)-ubuntu.tar.gz
           cd deployment/ansible
+
           ansible-playbook --limit="tag_role_epoch:&tag_env_${DEPLOY_ENV:?}" \
             --extra-vars "package=${PACKAGE:?} hosts_group=tag_env_${DEPLOY_ENV:?} env=${DEPLOY_ENV:?}" \
             deploy.yml
