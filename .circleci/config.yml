@@ -543,7 +543,6 @@ workflows:
             tags:
               only: /^v.*$/
 
-
       - deploy_aws_dev:
           requires:
             - linux_package
