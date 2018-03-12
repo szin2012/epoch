@@ -11,9 +11,12 @@
          txs/1,
          txs_hash/1,
          difficulty/1,
+         is_key_block/1,
          time_in_msecs/1,
          pow/1,
          set_pow/3,
+         signature/1,
+         set_signature/2,
          set_target/2,
          new/3,
          new_with_state/3,
@@ -57,6 +60,11 @@ target(Block) ->
 difficulty(Block) ->
     aec_pow:target_to_difficulty(target(Block)).
 
+-spec is_key_block(block()) -> boolean().
+is_key_block(Block) ->
+    Block#block.key =/= undefined.
+
+
 time_in_msecs(Block) ->
     Block#block.time.
 
@@ -73,6 +81,25 @@ set_pow(Block, Nonce, Evd) ->
 -spec pow(block()) -> aec_pow:pow_evidence().
 pow(Block) ->
     Block#block.pow_evidence.
+
+%% Sets the signature for microblock
+-spec set_signature(block(), list()) -> block().
+set_signature(Block, Signature) ->
+    Block#block{signature = Signature}.
+
+-spec key(block()) -> binary().
+key(Block) ->
+    Block#block.key.
+
+%% Sets the leader key in the key block
+-spec set_key(block(), binary()) -> block().
+set_key(Block, Key) ->
+    Block#block{key = Key}.
+
+-spec signature(block()) -> binary().
+signature(Block) ->
+    Block#block.signature.
+
 -spec set_target(block(), non_neg_integer()) -> block().
 set_target(Block, Target) ->
     Block#block{target = Target}.
