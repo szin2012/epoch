@@ -141,8 +141,8 @@ references:
         command: |
           export PACKAGE=${PACKAGES_DIR:?}/epoch-$(cat VERSION)-ubuntu.tar.gz
           cd deployment/ansible
-          ansible-playbook -i inventory/ec2.py --limit="epoch:&${DEPLOY_ENV:?}" \
-            --extra-vars "package=${PACKAGE:?} env=${DEPLOY_ENV:?}" \
+          ansible-playbook -i inventory/ec2.py --limit="tag_epoch_epoch_dev_aws" \
+            --extra-vars "package=${PACKAGE:?} env=dev-aws" \
             deploy.yml
 
 
