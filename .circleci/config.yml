@@ -126,7 +126,7 @@ references:
             --extra-vars "package=${PACKAGE:?} hosts_group=tag_env_${DEPLOY_ENV:?} env=${DEPLOY_ENV:?}" \
             deploy.yml
 
-  deploy_steps_aws: &deploy_steps
+  deploy_steps_aws: &deploy_steps_aws
     - checkout
     - attach_workspace:
         at: *packages_workspace
