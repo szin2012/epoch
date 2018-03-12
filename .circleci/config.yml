@@ -126,6 +126,26 @@ references:
             --extra-vars "package=${PACKAGE:?} hosts_group=tag_env_${DEPLOY_ENV:?} env=${DEPLOY_ENV:?}" \
             deploy.yml
 
+  deploy_steps_aws: &deploy_steps
+    - checkout
+    - attach_workspace:
+        at: *packages_workspace
+    - run:
+        name: Install PIP Requirements
+        command: |
+          pip install --user -r deployment/ansible/pip-requirements.txt
+    - run:
+        name: Deploy
+        environment:
+          PACKAGES_DIR: *packages_workspace
+        command: |
+          export PACKAGE=${PACKAGES_DIR:?}/epoch-$(cat VERSION)-ubuntu.tar.gz
+          cd deployment/ansible
+          ansible-playbook -i inventory/ec2.py --limit="epoch:&${DEPLOY_ENV:?}" \
+            --extra-vars "package=${PACKAGE:?} env=${DEPLOY_ENV:?}" \
+            deploy.yml
+
+
   upload_github_release_asset: &upload_github_release_asset
     run:
       name: Upload GitHub Release Asset
@@ -373,6 +393,12 @@ jobs:
       - DEPLOY_ENV: uat
     steps: *deploy_steps
 
+  deploy_aws_dev:
+    <<: *container_config
+    environment:
+      - DEPLOY_ENV: aws_dev
+    steps: *deploy_steps_aws
+
   github_release_osx:
     <<: *container_config
     steps:
@@ -516,6 +542,10 @@ workflows:
               ignore: /.*/
             tags:
               only: /^v.*$/
+
+      - deploy_aws_dev:
+          requires:
+            - test
 
       - deploy_uat:
           requires:
