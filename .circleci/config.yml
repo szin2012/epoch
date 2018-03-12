@@ -545,7 +545,7 @@ workflows:
 
       - deploy_aws_dev:
           requires:
-            - test
+            - linux_package
 
       - deploy_uat:
           requires:
