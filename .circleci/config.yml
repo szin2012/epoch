@@ -398,7 +398,7 @@ jobs:
   deploy_aws_dev:
     <<: *container_config
     environment:
-      - DEPLOY_ENV: dev-aws
+      - DEPLOY_ENV: dev_aws
     steps: *deploy_steps_aws
 
   github_release_osx:
