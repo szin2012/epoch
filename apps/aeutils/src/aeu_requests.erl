@@ -37,7 +37,7 @@
 -export([ping/2,
          top/1,
          get_header_by_hash/2,
-         get_n_hashes/3,
+         get_n_successors/3,
          get_header_by_height/2,
          get_block_by_height/2,
          get_block/2,
@@ -144,11 +144,11 @@ get_header_by_hash(Uri, Hash) ->
     end.
 
 %% Get the next n hashes and their heights
--spec get_n_hashes(http_uri_uri(),  binary(), non_neg_integer()) -> response([{integer(), binary()}]).
-get_n_hashes(Uri, Hash, N) when is_integer(N) ->
+-spec get_n_successors(http_uri_uri(),  binary(), non_neg_integer()) -> response([{integer(), binary()}]).
+get_n_successors(Uri, Hash, N) when is_integer(N) ->
     EncHash = aec_base58c:encode(block_hash, Hash),
     Response = process_request(Uri, 'GetHeadersByHash', [{"hash", EncHash}, 
-                                                         {"number", integer_to_list(N)}, 
+                                                         {"number", integer_to_list(N+1)}, 
                                                          {"direction", forward}]),
     case Response of
         {ok, 200, Data} when is_list(Data) ->
@@ -162,7 +162,7 @@ get_n_hashes(Uri, Hash, N) when is_integer(N) ->
                                     lager:info("Got bad block hash from ~p", [Uri]),
                                     Acc
                             end
-                        end, [], Data)};
+                        end, [], tl(Data))};
         {error, _Reason} = Error ->
             Error;
         _ ->

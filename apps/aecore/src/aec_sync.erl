@@ -230,7 +230,7 @@ handle_call({fetch_next, Uri, HeightIn, HashIn, Result}, _, State) ->
                                              sync_pool = 
                                                lists:keydelete(Uri, #sync_peer.uri, State#state.sync_pool)}};
                #sync_peer{to = To} ->
-                   {reply, {fill_pool, To, NewHeight, NewHash}, State#state{hash_pool = []}}
+                   {reply, {fill_pool, NewHeight, NewHash}, State#state{hash_pool = []}}
            end;
        {ok, NewHeight, NewHash, NewHashPool} ->
            lager:debug("Updated Hashpool ~p", [ [ {H, maps:is_key(block, Map)} || {{H,_}, Map} <- NewHashPool] ]),
@@ -516,9 +516,8 @@ do_start_sync(Uri, RemoteHash) ->
                     %% Already a sync in progress with this peer
                     ok;
                 true ->
-                    PoolResult = fill_pool(Uri, RemoteHeight, AgreedHeight, AgreedHash),
-                    %% fetch_more(RemoteHeight, AgreedHeight, AgreedHash, PoolResult),
-                    PoolResult
+                    PoolResult = fill_pool(Uri, AgreedHash),
+                    fetch_more(Uri, AgreedHeight, AgreedHash, PoolResult)
             end;
         {error, Reason} ->
             lager:debug("fetching top block (~p) failed: ~p", [Uri, Reason])
@@ -564,8 +563,8 @@ do_server_get_missing(Uri) ->
     aec_events:publish(chain_sync, {server_done, Uri}).
 
 
-fill_pool(Uri, _RemoteHeight, AgreedHeight, AgreedHash) ->
-    case aeu_requests:get_n_hashes(Uri, AgreedHash, ?MAX_HEADERS_PER_CHUNK) of
+fill_pool(Uri, AgreedHash) ->
+    case aeu_requests:get_n_successors(Uri, AgreedHash, ?MAX_HEADERS_PER_CHUNK) of
         {ok, []} ->
             delete_from_pool(Uri),
             aec_events:publish(chain_sync, {client_done, Uri}),
@@ -574,13 +573,19 @@ fill_pool(Uri, _RemoteHeight, AgreedHeight, AgreedHash) ->
             HashPool = [ {K, #{uri => Uri}} || K <- ChunkHashes ],
             lager:debug("We need to get the following hashes: ~p", [HashPool]),
             update_hash_pool(HashPool),
-            fetch_more(Uri, AgreedHeight, AgreedHash, {filled_pool, length(ChunkHashes)});
+            {filled_pool, length(ChunkHashes)-1};
         {error, _} = Error ->
             lager:info("Abort sync with ~p (~p) ", [Uri, Error]),
             delete_from_pool(Uri),
             {error, sync_abort}
     end.
 
+fetch_more(Uri, _, _, done) ->
+    delete_from_pool(Uri),
+    aec_events:publish(chain_sync, {client_done, Uri});
+fetch_more(Uri, LastHeight, _, {error, Error}) ->
+    lager:info("Abort sync at height ~p Error ~p ", [LastHeight, Error]),
+    delete_from_pool(Uri);
 fetch_more(Uri, LastHeight, HeaderHash, Result) ->
     %% We need to supply the Hash, because locally we might have a shorter, 
     %% but locally more difficult fork
@@ -592,14 +597,11 @@ fetch_more(Uri, LastHeight, HeaderHash, Result) ->
                 {error, _} = Error ->
                     fetch_more(Uri, NewHeight, NewHash, Error)
             end;
-        done ->
-            aec_events:publish(chain_sync, {client_done, Uri});
-        {fill_pool, To, AgreedHeight, AgreedHash} ->
-            fill_pool(Uri, To, AgreedHeight, AgreedHash);
-        Error ->
-            lager:info("Abort sync at height ~p Error ~p ", [LastHeight, Error]),
-            delete_from_pool(Uri),
-            Error
+        {fill_pool, AgreedHeight, AgreedHash} ->
+            PoolResult = fill_pool(Uri, AgreedHash),
+            fetch_more(Uri, AgreedHeight, AgreedHash, PoolResult);
+        Other ->
+            fetch_more(Uri, LastHeight, HeaderHash, Other)
   end.
 
 fetch_block(Hash, Uri) ->
