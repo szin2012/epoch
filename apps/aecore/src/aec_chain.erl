@@ -25,6 +25,7 @@
         , has_block/1
         , has_header/1
         , hash_is_connected_to_genesis/1
+        , hash_is_in_main_chain/1
         , top_block/0
         , top_block_hash/0
         , top_block_header/0
@@ -250,6 +251,16 @@ genesis_header() ->
                                   {error, atom()}.
 find_common_ancestor(Hash1, Hash2) when is_binary(Hash1), is_binary(Hash2) ->
     aec_chain_state:find_common_ancestor(Hash1, Hash2).
+
+
+-spec hash_is_in_main_chain(binary()) -> boolean().
+hash_is_in_main_chain(Hash) when is_binary(Hash) ->
+    case get_header(Hash) of
+        none -> false;
+        {value, Header} ->
+            Height = aec_headers:height(Header),
+            {ok, Hash} =:= aec_chain_state:get_hash_at_height(Height)
+    end.
 
 -spec hash_is_connected_to_genesis(binary()) -> boolean().
 hash_is_connected_to_genesis(Hash) when is_binary(Hash) ->

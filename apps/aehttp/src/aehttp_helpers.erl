@@ -315,17 +315,30 @@ get_transaction(TxKey, TxStateKey) ->
         case aec_db:read_tx(TxHash) of
             [] ->
                 {error, {404, [], #{<<"reason">> => <<"Transaction not found">>}}};
-            [{Block0, Tx}] ->
-                BlockHash =
-                    case Block0 of
-                        mempool -> mempool;
-                        BH when is_binary(BH) -> BH
-                    end,
-                {ok, maps:put(TxStateKey, #{tx => Tx,
-                                            tx_block_hash => BlockHash},
-                             State)}
+            [{Tag, Tx}] when (Tag =:= mempool) orelse is_binary(Tag) ->
+                {ok, maps:put(TxStateKey, #{tx => Tx, tx_block_hash => Tag},
+                              State)};
+            [_, _|_] = BlockTxsList ->
+                {Tag, Tx} = pick_transaction(BlockTxsList),
+                {ok, maps:put(TxStateKey, #{tx => Tx, tx_block_hash => Tag},
+                              State)}
         end
     end.
+
+pick_transaction(BlockTxsList) ->
+    pick_transaction(BlockTxsList, none).
+
+pick_transaction([{mempool, Tx}|Left], none) ->
+    pick_transaction(Left, {mempool, Tx});
+pick_transaction([{Hash, Tx}|Left], Acc) when is_binary(Hash) ->
+    %% Pick the transaction if it was included in the main chain
+    case aec_chain:hash_is_in_main_chain(Hash) of
+        true  -> {Hash, Tx};
+        false -> pick_transaction(Left, Acc)
+    end;
+pick_transaction([], {mempool, _} = Acc) ->
+    %% The transaction was pushed back to mempool.
+    Acc.
 
 parse_tx_encoding(TxEncodingKey) ->
     fun(_Req, State) ->
